@@ -1,0 +1,1205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TAAPDRISHTI | Raipur–Durg Urban Heat Intelligence</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-dark: #070D18;
+    --panel-bg: rgba(15, 25, 44, 0.92);
+    --panel-card: #13223A;
+    --panel-card-hover: #1A2D4C;
+    --border-color: rgba(255, 255, 255, 0.09);
+    --border-highlight: rgba(34, 211, 176, 0.4);
+    
+    --text-main: #F1F5F9;
+    --text-muted: #94A3B8;
+    --text-dim: #64748B;
+    
+    --accent: #22D3B0;
+    --accent-glow: rgba(34, 211, 176, 0.15);
+    
+    /* Risk Levels */
+    --risk-low: #34D399;
+    --risk-low-bg: rgba(52, 211, 153, 0.15);
+    --risk-med: #FACC15;
+    --risk-med-bg: rgba(250, 204, 21, 0.15);
+    --risk-high: #FB923C;
+    --risk-high-bg: rgba(251, 146, 60, 0.15);
+    --risk-extreme: #E23E3E;
+    --risk-extreme-bg: rgba(226, 62, 62, 0.18);
+  }
+
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    width: 100%;
+    background: var(--bg-dark);
+    color: var(--text-main);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    overflow: hidden;
+  }
+  
+  h1, h2, h3, h4, .mono-num, .score-display {
+    font-family: 'Space Grotesk', sans-serif;
+  }
+
+  /* Fullscreen Map */
+  #map {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    background: #09101D;
+  }
+
+  .leaflet-tile-pane {
+    filter: invert(1) hue-rotate(180deg) brightness(0.75) contrast(1.1) saturate(0.6);
+  }
+  
+  .leaflet-interactive {
+    cursor: pointer !important;
+  }
+
+  .leaflet-control-attribution {
+    background: rgba(7, 13, 24, 0.85) !important;
+    color: var(--text-muted) !important;
+    font-size: 10px;
+    border-top-left-radius: 6px;
+  }
+  .leaflet-control-attribution a { color: var(--accent) !important; }
+
+  .leaflet-bottom.leaflet-left {
+    bottom: 24px;
+    left: 24px;
+    z-index: 600;
+  }
+  .leaflet-bar {
+    border: 1px solid var(--border-color) !important;
+    border-radius: 8px !important;
+    overflow: hidden;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.4) !important;
+  }
+  .leaflet-bar a {
+    background-color: var(--panel-bg) !important;
+    color: var(--text-main) !important;
+    border-bottom: 1px solid var(--border-color) !important;
+  }
+  .leaflet-bar a:hover {
+    background-color: var(--panel-card) !important;
+    color: var(--accent) !important;
+  }
+
+  /* Dashboard Header */
+  #header {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 500;
+    padding: 16px 24px;
+    background: linear-gradient(180deg, rgba(7, 13, 24, 0.95) 60%, rgba(7, 13, 24, 0));
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    pointer-events: none;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  #header > * { pointer-events: auto; }
+
+  .brand-group {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .brand-icon {
+    width: 40px;
+    height: 40px;
+    background: linear-gradient(135deg, #FF5E3A, #FF2A6D);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 0 20px rgba(255, 94, 58, 0.35);
+  }
+  .brand-icon svg {
+    width: 22px;
+    height: 22px;
+    fill: #FFF;
+  }
+
+  .brand-title {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    color: var(--text-main);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .brand-subtitle {
+    margin: 2px 0 0 0;
+    font-size: 12px;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .demo-badge {
+    background: rgba(34, 211, 176, 0.12);
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    text-transform: uppercase;
+    transition: all 0.3s;
+  }
+  .demo-badge::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    background: var(--accent);
+    border-radius: 50%;
+    box-shadow: 0 0 8px var(--accent);
+    animation: pulse 2s infinite;
+  }
+  .demo-badge.heatwave {
+    background: rgba(226, 62, 62, 0.15);
+    border-color: var(--risk-extreme);
+    color: #FF8F8F;
+  }
+  .demo-badge.heatwave::before {
+    background: var(--risk-extreme);
+    box-shadow: 0 0 8px var(--risk-extreme);
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.4; transform: scale(0.85); }
+  }
+
+  /* Scenario Control Bar */
+  .right-controls {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .scenario-toggle {
+    display: flex;
+    background: var(--panel-bg);
+    backdrop-filter: blur(12px);
+    border: 1px solid var(--border-color);
+    padding: 3px;
+    border-radius: 24px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  }
+
+  .scenario-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 11.5px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .scenario-btn:hover {
+    color: var(--text-main);
+  }
+  .scenario-btn.active {
+    background: var(--panel-card-hover);
+    color: var(--accent);
+    border: 1px solid var(--accent);
+    box-shadow: 0 0 12px rgba(34, 211, 176, 0.25);
+  }
+  .scenario-btn.active.heatwave-mode {
+    color: #FF8F73;
+    border-color: var(--risk-extreme);
+    box-shadow: 0 0 12px rgba(226, 62, 62, 0.3);
+  }
+
+  /* Legend Pill */
+  .legend-bar {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    background: var(--panel-bg);
+    backdrop-filter: blur(12px);
+    border: 1px solid var(--border-color);
+    padding: 8px 16px;
+    border-radius: 30px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11.5px;
+    font-weight: 500;
+    color: var(--text-muted);
+  }
+  .legend-swatch {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+  }
+
+  /* KPI Overlay Strip */
+  #kpiStrip {
+    position: absolute;
+    top: 80px;
+    left: 24px;
+    z-index: 500;
+    display: flex;
+    gap: 12px;
+    pointer-events: none;
+    flex-wrap: wrap;
+  }
+  #kpiStrip > * { pointer-events: auto; }
+
+  .kpi-card {
+    background: var(--panel-bg);
+    backdrop-filter: blur(12px);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 10px 16px;
+    min-width: 135px;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.35);
+    transition: transform 0.2s, border-color 0.2s;
+  }
+  .kpi-card:hover {
+    border-color: rgba(255,255,255,0.2);
+    transform: translateY(-2px);
+  }
+  .kpi-label {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    margin-bottom: 4px;
+  }
+  .kpi-value {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text-main);
+    transition: color 0.3s;
+  }
+  .kpi-subtext {
+    font-size: 10.5px;
+    color: var(--text-dim);
+    margin-top: 2px;
+  }
+
+  /* Floating Click Hint */
+  #clickHint {
+    position: absolute;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 500;
+    background: var(--panel-bg);
+    backdrop-filter: blur(12px);
+    border: 1px solid var(--accent);
+    color: var(--text-main);
+    padding: 10px 20px;
+    border-radius: 30px;
+    font-size: 13px;
+    font-weight: 500;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5), 0 0 15px rgba(34, 211, 176, 0.2);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    pointer-events: none;
+    transition: opacity 0.4s;
+  }
+  #clickHint svg {
+    width: 16px;
+    height: 16px;
+    stroke: var(--accent);
+  }
+
+  /* Zone Intelligence Side Drawer */
+  #sideDrawer {
+    position: absolute;
+    top: 0;
+    right: -430px;
+    width: 410px;
+    height: 100%;
+    z-index: 700;
+    background: var(--panel-bg);
+    backdrop-filter: blur(16px);
+    border-left: 1px solid var(--border-color);
+    padding: 66px 14px 10px;
+    overflow-y: auto;
+    box-shadow: -10px 0 40px rgba(0,0,0,0.5);
+    transition: right 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  #sideDrawer.open {
+    right: 0;
+  }
+
+  .drawer-close {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    background: var(--panel-card);
+    border: 1px solid var(--border-color);
+    color: var(--text-muted);
+    width: 26px;
+    height: 26px;
+    border-radius: 6px;
+    font-size: 15px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+  }
+  .drawer-close:hover {
+    background: var(--panel-card-hover);
+    color: var(--text-main);
+    border-color: rgba(255,255,255,0.2);
+  }
+
+  /* Zone Header Info */
+  .zone-header-box {
+    background: var(--panel-card);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 7px 10px;
+    position: relative;
+  }
+  .zone-meta-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 2px;
+  }
+  .zone-title {
+    font-size: 14px;
+    font-weight: 700;
+    margin: 0;
+    color: var(--text-main);
+  }
+  .zone-coords {
+    font-size: 10px;
+    color: var(--text-dim);
+    margin-top: 1px;
+  }
+  .risk-badge {
+    padding: 3px 8px;
+    border-radius: 14px;
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    transition: all 0.3s;
+  }
+
+  .risk-score-wrapper {
+    display: flex;
+    align-items: baseline;
+    gap: 5px;
+    margin-top: 2px;
+  }
+  .score-val {
+    font-size: 32px;
+    font-weight: 700;
+    line-height: 1;
+    transition: color 0.3s;
+  }
+  .score-max {
+    font-size: 13px;
+    color: var(--text-dim);
+    font-weight: 500;
+  }
+  .model-name-tag {
+    font-size: 10px;
+    color: var(--text-muted);
+    margin-top: 2px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  /* Scenario Alert Banner in Drawer */
+  .scenario-alert-banner {
+    display: none;
+    margin-top: 4px;
+    padding: 4px 8px;
+    background: rgba(226, 62, 62, 0.15);
+    border: 1px solid rgba(226, 62, 62, 0.4);
+    border-radius: 5px;
+    color: #FF8F8F;
+    font-size: 10px;
+    font-weight: 600;
+  }
+
+  /* Factors Breakdown */
+  .section-title {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: var(--text-muted);
+    margin: 0 0 3px 0;
+  }
+
+  .factors-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 5px;
+  }
+  .factor-item {
+    background: var(--panel-card);
+    border: 1px solid var(--border-color);
+    border-radius: 5px;
+    padding: 4px 7px;
+  }
+  .factor-header {
+    display: flex;
+    justify-content: space-between;
+    font-size: 10px;
+    margin-bottom: 2px;
+  }
+  .factor-name {
+    color: var(--text-main);
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 110px;
+  }
+  .factor-value {
+    font-weight: 600;
+    color: var(--text-muted);
+    font-size: 9.5px;
+  }
+  .factor-bar-track {
+    height: 3px;
+    background: rgba(255,255,255,0.06);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  .factor-bar-fill {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 0.4s ease;
+  }
+
+  /* Dominant Drivers Chips */
+  .drivers-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-bottom: 1px;
+  }
+  .driver-chip {
+    background: rgba(255, 94, 58, 0.12);
+    border: 1px solid rgba(255, 94, 58, 0.3);
+    color: #FF8F73;
+    font-size: 10px;
+    padding: 2px 7px;
+    border-radius: 4px;
+    font-weight: 500;
+  }
+
+  /* XAI Explanation Card */
+  .xai-card {
+    background: var(--panel-card);
+    border: 1px solid var(--border-color);
+    border-left: 3px solid var(--accent);
+    border-radius: 6px;
+    padding: 7px 10px;
+    transition: border-color 0.3s;
+  }
+  .xai-card p {
+    margin: 0;
+    font-size: 10.5px;
+    line-height: 1.35;
+    color: var(--text-main);
+  }
+
+  /* Methodology Footnote */
+  .methodology-note {
+    font-size: 9.5px;
+    color: var(--text-dim);
+    line-height: 1.3;
+    margin-top: 4px;
+    padding-top: 4px;
+    border-top: 1px dashed var(--border-color);
+  }
+
+  /* Action Recommendation Card */
+  .rec-card {
+    background: var(--panel-card);
+    border: 1px solid var(--border-color);
+    border-left: 3px solid #FACC15;
+    border-radius: 6px;
+    padding: 7px 10px;
+    transition: border-color 0.3s;
+  }
+  .rec-card.extreme { border-left-color: var(--risk-extreme); }
+  .rec-card.high { border-left-color: var(--risk-high); }
+  .rec-card.med { border-left-color: var(--risk-med); }
+  .rec-card.low { border-left-color: var(--risk-low); }
+
+  .rec-header {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 3px;
+    color: var(--text-main);
+  }
+  .rec-card p {
+    margin: 0;
+    font-size: 10.5px;
+    line-height: 1.35;
+    color: var(--text-main);
+  }
+
+  /* Scrollbar Customization */
+  #sideDrawer::-webkit-scrollbar { width: 5px; }
+  #sideDrawer::-webkit-scrollbar-track { background: transparent; }
+  #sideDrawer::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 10px; }
+</style>
+</head>
+<body>
+
+<!-- Map Container -->
+<div id="map"></div>
+
+<!-- Top Command Header -->
+<div id="header">
+  <div class="brand-group">
+    <div class="brand-icon">
+      <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+    </div>
+    <div>
+      <h1 class="brand-title">TAAPDRISHTI <span class="demo-badge" id="demoBadge">DEMO MODE &bull; SIMULATED REPRESENTATIVE DATA</span></h1>
+      <div class="brand-subtitle">AI-Based Urban Heat Risk Mapping &amp; Early Warning System &bull; Raipur&ndash;Durg Urban Corridor</div>
+    </div>
+  </div>
+
+  <div class="right-controls">
+    <div class="scenario-toggle">
+      <button class="scenario-btn active" id="btnBaseline" onclick="setScenario('baseline')">BASELINE</button>
+      <button class="scenario-btn" id="btnHeatwave" onclick="setScenario('heatwave')">SEVERE HEATWAVE (+4°C)</button>
+    </div>
+
+    <div class="legend-bar">
+      <div class="legend-item"><span class="legend-swatch" style="background:var(--risk-low)"></span>Low (0-34)</div>
+      <div class="legend-item"><span class="legend-swatch" style="background:var(--risk-med)"></span>Medium (35-54)</div>
+      <div class="legend-item"><span class="legend-swatch" style="background:var(--risk-high)"></span>High (55-74)</div>
+      <div class="legend-item"><span class="legend-swatch" style="background:var(--risk-extreme)"></span>Extreme (75-100)</div>
+    </div>
+  </div>
+</div>
+
+<!-- KPI Strip -->
+<div id="kpiStrip">
+  <div class="kpi-card">
+    <div class="kpi-label">Monitored Area</div>
+    <div class="kpi-value mono-num">196 Zones</div>
+    <div class="kpi-subtext">Raipur&ndash;Durg Corridor Grid</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-label">Extreme Risk</div>
+    <div class="kpi-value mono-num" id="kpiExtreme" style="color:var(--risk-extreme)">--</div>
+    <div class="kpi-subtext" id="kpiExtremeSub">Immediate Advisory</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-label">High Risk</div>
+    <div class="kpi-value mono-num" id="kpiHigh" style="color:var(--risk-high)">--</div>
+    <div class="kpi-subtext" id="kpiHighSub">Targeted Monitoring</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-label">Avg Surface Temp</div>
+    <div class="kpi-value mono-num" id="kpiAvgTemp">-- °C</div>
+    <div class="kpi-subtext" id="kpiAvgTempSub">Regional Baseline</div>
+  </div>
+</div>
+
+<!-- Initial Hint Overlay -->
+<div id="clickHint">
+  <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><path d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5"/></svg>
+  Select any grid zone across the Raipur&ndash;Durg corridor to inspect its heat-risk breakdown
+</div>
+
+<!-- Side Drawer (Zone Intelligence) -->
+<div id="sideDrawer">
+  <button class="drawer-close" onclick="closeDrawer()">&times;</button>
+  
+  <div class="zone-header-box">
+    <div class="zone-meta-top">
+      <div>
+        <h2 class="zone-title" id="dZoneName">Zone Sector</h2>
+        <div class="zone-coords" id="dZoneCoords">Lat --, Lon --</div>
+      </div>
+      <span class="risk-badge" id="dRiskBadge">--</span>
+    </div>
+    <div class="risk-score-wrapper">
+      <span class="score-val mono-num" id="dRiskScore">--</span>
+      <span class="score-max">/ 100</span>
+    </div>
+    <div class="model-name-tag">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+      Model: <strong>Explainable Heat Risk Model</strong>
+    </div>
+    <div class="scenario-alert-banner" id="dScenarioAlert">
+      &bull; HEATWAVE SCENARIO: Thermal stress escalated by +4.0°C surface heat.
+    </div>
+  </div>
+
+  <div>
+    <div class="section-title">Key Risk Drivers</div>
+    <div class="drivers-list" id="dDriversList">
+      <!-- Chips added dynamically -->
+    </div>
+  </div>
+
+  <div>
+    <div class="section-title">Risk Breakdown (6 Factors)</div>
+    <div class="factors-grid">
+      
+      <div class="factor-item">
+        <div class="factor-header">
+          <span class="factor-name">Land Surface Temp (LST)</span>
+          <span class="factor-value" id="fValLST">-- °C</span>
+        </div>
+        <div class="factor-bar-track">
+          <div class="factor-bar-fill" id="fFillLST" style="background:var(--risk-high); width:0%;"></div>
+        </div>
+      </div>
+
+      <div class="factor-item">
+        <div class="factor-header">
+          <span class="factor-name">Built-Up Density</span>
+          <span class="factor-value" id="fValBld">-- %</span>
+        </div>
+        <div class="factor-bar-track">
+          <div class="factor-bar-fill" id="fFillBld" style="background:var(--risk-high); width:0%;"></div>
+        </div>
+      </div>
+
+      <div class="factor-item">
+        <div class="factor-header">
+          <span class="factor-name">Vegetation Deficit (1 - NDVI)</span>
+          <span class="factor-value" id="fValVeg">-- %</span>
+        </div>
+        <div class="factor-bar-track">
+          <div class="factor-bar-fill" id="fFillVeg" style="background:var(--risk-med); width:0%;"></div>
+        </div>
+      </div>
+
+      <div class="factor-item">
+        <div class="factor-header">
+          <span class="factor-name">Impervious Surface</span>
+          <span class="factor-value" id="fValImp">-- %</span>
+        </div>
+        <div class="factor-bar-track">
+          <div class="factor-bar-fill" id="fFillImp" style="background:var(--risk-high); width:0%;"></div>
+        </div>
+      </div>
+
+      <div class="factor-item">
+        <div class="factor-header">
+          <span class="factor-name">Water Cooling Deficit</span>
+          <span class="factor-value" id="fValWat">-- %</span>
+        </div>
+        <div class="factor-bar-track">
+          <div class="factor-bar-fill" id="fFillWat" style="background:var(--accent); width:0%;"></div>
+        </div>
+      </div>
+
+      <div class="factor-item">
+        <div class="factor-header">
+          <span class="factor-name">Population Vulnerability</span>
+          <span class="factor-value" id="fValVuln">-- %</span>
+        </div>
+        <div class="factor-bar-track">
+          <div class="factor-bar-fill" id="fFillVuln" style="background:var(--risk-extreme); width:0%;"></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div>
+    <div class="section-title">Why This Zone Has Its Score</div>
+    <div class="xai-card" id="dXaiCard">
+      <p id="dXaiText">Select a zone to generate dynamic risk explanation.</p>
+      <div class="methodology-note">
+        &bull; Spatial patterns are representative simulations for the Raipur&ndash;Durg urban corridor. Production deployment would ingest satellite, GIS and demographic datasets.
+      </div>
+    </div>
+  </div>
+
+  <div>
+    <div class="section-title">Recommended Action</div>
+    <div class="rec-card" id="dRecCard">
+      <div class="rec-header">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        <span id="dRecTitle">Action Protocol</span>
+      </div>
+      <p id="dRecText">Recommended emergency action will load here.</p>
+    </div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+  // ---------- MAP INITIALIZATION (RAIPUR-DURG CORRIDOR) ----------
+  const map = L.map('map', { zoomControl: false, attributionControl: true }).setView([21.2350, 81.4650], 11);
+  L.control.zoom({ position: 'bottomleft' }).addTo(map);
+
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    maxZoom: 19,
+    minZoom: 9
+  }).addTo(map);
+
+  // ---------- SPATIAL GRID & DATA SIMULATION (RAIPUR-DURG CORRIDOR) ----------
+  const GRID = 14;
+  const LAT_MIN = 21.1500, LAT_MAX = 21.3200;
+  const LON_MIN = 81.2500, LON_MAX = 81.6800;
+  const latStep = (LAT_MAX - LAT_MIN) / GRID;
+  const lonStep = (LON_MAX - LON_MIN) / GRID;
+
+  // Regional spatial reference anchors across Raipur-Durg corridor
+  const DURG_CORE = { lat: 21.1900, lon: 81.2800 };      // Durg Urban Core
+  const BHILAI_IND = { lat: 21.2100, lon: 81.3800 };     // Bhilai Steel / Heavy Industrial Belt
+  const BHILAI_RES = { lat: 21.2200, lon: 81.4200 };     // Bhilai Residential Township
+  const KUMHARI_CORR = { lat: 21.2600, lon: 81.5200 };   // Kumhari Transition Corridor
+  const RAIPUR_CORE = { lat: 21.2514, lon: 81.6296 };    // Raipur Urban Core
+  const RAIPUR_PERIPH = { lat: 21.2800, lon: 81.6500 };  // Raipur Peripheral Sector
+  const KHARUN_RIVER_LON = 81.5500;                       // Kharun River hydrological cooling buffer
+  const GREEN_FOREST = { lat: 21.1800, lon: 81.3500 };   // Maitri Bagh / Open Forest Sector
+  const VULN_SPOT_1 = { lat: 21.2700, lon: 81.3200 };    // West Vulnerable Cluster
+  const VULN_SPOT_2 = { lat: 21.2900, lon: 81.6000 };    // East Vulnerable Cluster
+
+  function dist(lat1, lon1, lat2, lon2) {
+    return Math.sqrt((lat1 - lat2) ** 2 + (lon1 - lon2) ** 2);
+  }
+  function clamp(v, min = 0, max = 1) {
+    return Math.max(min, Math.min(max, v));
+  }
+  function noise(i, j, seed) {
+    const x = Math.sin(i * 12.9898 + j * 78.233 + seed * 37.719) * 43758.5453;
+    return (x - Math.floor(x)) * 0.14 - 0.07;
+  }
+
+  function getCorridorSectorName(lat, lon) {
+    const dDurg = dist(lat, lon, DURG_CORE.lat, DURG_CORE.lon);
+    const dBhilaiInd = dist(lat, lon, BHILAI_IND.lat, BHILAI_IND.lon);
+    const dBhilaiRes = dist(lat, lon, BHILAI_RES.lat, BHILAI_RES.lon);
+    const dKumhari = dist(lat, lon, KUMHARI_CORR.lat, KUMHARI_CORR.lon);
+    const dRaipur = dist(lat, lon, RAIPUR_CORE.lat, RAIPUR_CORE.lon);
+    const dGreen = dist(lat, lon, GREEN_FOREST.lat, GREEN_FOREST.lon);
+    const dRiver = Math.abs(lon - KHARUN_RIVER_LON);
+
+    if (dDurg < 0.06) return 'Durg Urban Sector';
+    if (dBhilaiInd < 0.07) return 'Bhilai Industrial Sector';
+    if (dBhilaiRes < 0.06) return 'Bhilai Residential Sector';
+    if (dKumhari < 0.06) return 'Kumhari Transition Corridor';
+    if (dRaipur < 0.06) return 'Raipur Urban Core';
+    if (dGreen < 0.06) return 'Green / Open Forest Sector';
+    if (dRiver < 0.04) return 'Kharun River Cooling Buffer';
+    if (lon > 81.63) return 'Raipur Peripheral Sector';
+    return 'Industrial & Freight Corridor';
+  }
+
+  const zones = [];
+  let currentScenario = 'baseline'; // 'baseline' or 'heatwave'
+  let selectedZoneId = null;
+  let activeLayer = null;
+
+  // Generate Baseline Environmental Parameters for Corridor Grid
+  for (let i = 0; i < GRID; i++) {
+    for (let j = 0; j < GRID; j++) {
+      const latC = LAT_MIN + latStep * (i + 0.5);
+      const lonC = LON_MIN + lonStep * (j + 0.5);
+
+      const dDurg = dist(latC, lonC, DURG_CORE.lat, DURG_CORE.lon);
+      const dBhilaiInd = dist(latC, lonC, BHILAI_IND.lat, BHILAI_IND.lon);
+      const dRaipur = dist(latC, lonC, RAIPUR_CORE.lat, RAIPUR_CORE.lon);
+      const dGreen = dist(latC, lonC, GREEN_FOREST.lat, GREEN_FOREST.lon);
+      const dRiver = Math.abs(lonC - KHARUN_RIVER_LON);
+      const dVuln = Math.min(dist(latC, lonC, VULN_SPOT_1.lat, VULN_SPOT_1.lon), dist(latC, lonC, VULN_SPOT_2.lat, VULN_SPOT_2.lon));
+
+      const minUrbanDist = Math.min(dDurg, dRaipur, dBhilaiInd);
+
+      // Baseline LST (°C) [30.0°C to 46.0°C]
+      let baseLstC = 31.8 + (1 - minUrbanDist / 0.12) * 7.0 + (1 - dBhilaiInd / 0.09) * 4.5 - (1 - dGreen / 0.09) * 5.5 - (1 - dRiver / 0.06) * 4.0 + noise(i, j, 1) * 4.0;
+      baseLstC = Math.max(30.0, Math.min(46.0, baseLstC));
+
+      // Built Density [0 to 1]
+      let builtDensity = clamp(1 - minUrbanDist / 0.11 + (1 - dBhilaiInd / 0.08) * 0.4 + noise(i, j, 2));
+
+      // Vegetation NDVI [0.05 to 0.85] -> Vegetation Deficit = 1 - NDVI
+      let ndvi = clamp(1 - dGreen / 0.09 + (1 - dRiver / 0.06) * 0.35 + noise(i, j, 3) - builtDensity * 0.35, 0.05, 0.85);
+      const vegDeficit = clamp(1 - ndvi);
+
+      // Impervious Surface [0 to 1]
+      let impervious = clamp(builtDensity * 0.75 + (1 - dBhilaiInd / 0.08) * 0.5 + noise(i, j, 4));
+
+      // Water Proximity [0 to 1] -> Water Cooling Deficit = 1 - WaterProx
+      let waterProxNorm = clamp(1 - dRiver / 0.08 + noise(i, j, 5));
+      const waterDeficit = clamp(1 - waterProxNorm);
+
+      // Population Vulnerability [0 to 1]
+      let popVuln = clamp(0.25 + (1 - dVuln / 0.08) * 0.55 + noise(i, j, 6));
+
+      const gridLabel = `Zone ${String.fromCharCode(65 + i)}${j + 1}`;
+      const sectorName = getCorridorSectorName(latC, lonC);
+      const fullZoneId = `${gridLabel} (${sectorName})`;
+
+      zones.push({
+        id: fullZoneId,
+        gridCode: gridLabel,
+        sectorName,
+        i, j,
+        latC, lonC,
+        bounds: [
+          [LAT_MIN + latStep * i, LON_MIN + lonStep * j],
+          [LAT_MIN + latStep * (i + 1), LON_MIN + lonStep * (j + 1)]
+        ],
+        baseLstC,
+        builtDensity,
+        ndvi, vegDeficit,
+        impervious,
+        waterProxNorm, waterDeficit,
+        popVuln,
+        // Computed fields populated dynamically
+        lstC: 0, lstNorm: 0,
+        riskScore: 0, category: '', color: '', bg: '',
+        topDrivers: []
+      });
+    }
+  }
+
+  function resolveVar(cssVar) {
+    return cssVar.startsWith('var(') 
+      ? getComputedStyle(document.documentElement).getPropertyValue(cssVar.replace('var(', '').replace(')', '').trim()).trim()
+      : cssVar;
+  }
+
+  // Render Initial Leaflet Rectangles
+  zones.forEach(zone => {
+    const polygon = L.rectangle(zone.bounds, {
+      color: '#34D399',
+      weight: 1,
+      opacity: 0.4,
+      fillColor: '#34D399',
+      fillOpacity: 0.45
+    }).addTo(map);
+
+    polygon.on('mouseover', () => {
+      if (polygon !== activeLayer) {
+        polygon.setStyle({ fillOpacity: 0.75, weight: 1.5 });
+      }
+    });
+
+    polygon.on('mouseout', () => {
+      if (polygon !== activeLayer) {
+        polygon.setStyle({ fillOpacity: 0.45, weight: 1 });
+      }
+    });
+
+    polygon.on('click', () => {
+      selectZone(zone, polygon);
+    });
+
+    zone.layer = polygon;
+  });
+
+  // ---------- RE-SCORING RISK ENGINE ----------
+  let baseExtremeCount = 0;
+  let baseHighCount = 0;
+
+  function runRiskEngine() {
+    let extremeCount = 0;
+    let highCount = 0;
+    let totalTempSum = 0;
+
+    const tempOffset = (currentScenario === 'heatwave') ? 4.0 : 0.0;
+
+    zones.forEach(zone => {
+      // Modify LST input by scenario offset
+      zone.lstC = zone.baseLstC + tempOffset;
+      zone.lstNorm = clamp((zone.lstC - 30.0) / (46.0 - 30.0));
+
+      // EXACT PROTOTYPE RISK FORMULA
+      // Risk = 0.25*LST_norm + 0.25*Built_Density + 0.20*Veg_Deficit + 0.15*Impervious + 0.10*Water_Deficit + 0.05*Pop_Vuln
+      const riskFraction = (
+        0.25 * zone.lstNorm +
+        0.25 * zone.builtDensity +
+        0.20 * zone.vegDeficit +
+        0.15 * zone.impervious +
+        0.10 * zone.waterDeficit +
+        0.05 * zone.popVuln
+      );
+
+      zone.riskScore = Math.round(riskFraction * 100);
+
+      // Classification
+      if (zone.riskScore <= 34) {
+        zone.category = 'LOW';
+        zone.color = 'var(--risk-low)';
+        zone.bg = 'var(--risk-low-bg)';
+      } else if (zone.riskScore <= 54) {
+        zone.category = 'MEDIUM';
+        zone.color = 'var(--risk-med)';
+        zone.bg = 'var(--risk-med-bg)';
+      } else if (zone.riskScore <= 74) {
+        zone.category = 'HIGH';
+        zone.color = 'var(--risk-high)';
+        zone.bg = 'var(--risk-high-bg)';
+        highCount++;
+      } else {
+        zone.category = 'EXTREME';
+        zone.color = 'var(--risk-extreme)';
+        zone.bg = 'var(--risk-extreme-bg)';
+        extremeCount++;
+      }
+
+      totalTempSum += zone.lstC;
+
+      // Identify Dominant Drivers
+      const factorContribs = [
+        { key: 'LST', contrib: 0.25 * zone.lstNorm, label: `High Surface Heat (${zone.lstC.toFixed(1)}°C)` },
+        { key: 'BuiltDensity', contrib: 0.25 * zone.builtDensity, label: `High Built Density (${Math.round(zone.builtDensity * 100)}%)` },
+        { key: 'VegDeficit', contrib: 0.20 * zone.vegDeficit, label: `Severe Canopy Deficit (NDVI ${zone.ndvi.toFixed(2)})` },
+        { key: 'Impervious', contrib: 0.15 * zone.impervious, label: `High Impervious Asphalt (${Math.round(zone.impervious * 100)}%)` },
+        { key: 'WaterDeficit', contrib: 0.10 * zone.waterDeficit, label: `Distant Hydrological Cooling Buffer` },
+        { key: 'PopVuln', contrib: 0.05 * zone.popVuln, label: `High Demographic Vulnerability` }
+      ];
+
+      factorContribs.sort((a, b) => b.contrib - a.contrib);
+      zone.topDrivers = factorContribs.slice(0, 2);
+
+      // Update Polygon Visual Styling
+      const rawColor = resolveVar(zone.color);
+      if (zone.layer) {
+        zone.layer.setStyle({
+          color: rawColor,
+          fillColor: rawColor,
+          fillOpacity: (activeLayer === zone.layer) ? 0.88 : 0.45,
+          weight: (activeLayer === zone.layer) ? 2.5 : 1
+        });
+      }
+    });
+
+    if (currentScenario === 'baseline') {
+      baseExtremeCount = extremeCount;
+      baseHighCount = highCount;
+    }
+
+    // Update KPI strip displays
+    const avgTemp = (totalTempSum / zones.length).toFixed(1);
+    
+    if (currentScenario === 'heatwave') {
+      document.getElementById('kpiExtreme').textContent = `${extremeCount} (+${extremeCount - baseExtremeCount})`;
+      document.getElementById('kpiExtremeSub').textContent = `Baseline: ${baseExtremeCount}`;
+      document.getElementById('kpiHigh').textContent = `${highCount}`;
+      document.getElementById('kpiHighSub').textContent = `Baseline: ${baseHighCount}`;
+      document.getElementById('kpiAvgTemp').textContent = `${avgTemp} °C`;
+      document.getElementById('kpiAvgTempSub').textContent = `+4.0°C Heatwave Anomaly`;
+    } else {
+      document.getElementById('kpiExtreme').textContent = extremeCount;
+      document.getElementById('kpiExtremeSub').textContent = `Immediate Advisory`;
+      document.getElementById('kpiHigh').textContent = highCount;
+      document.getElementById('kpiHighSub').textContent = `Targeted Monitoring`;
+      document.getElementById('kpiAvgTemp').textContent = `${avgTemp} °C`;
+      document.getElementById('kpiAvgTempSub').textContent = `Regional Baseline`;
+    }
+
+    // If a zone is currently selected, re-render drawer with updated values
+    if (selectedZoneId) {
+      const activeZoneObj = zones.find(z => z.id === selectedZoneId);
+      if (activeZoneObj && activeLayer) {
+        populateDrawer(activeZoneObj);
+      }
+    }
+  }
+
+  // ---------- SCENARIO SWITCHING LOGIC ----------
+  function setScenario(mode) {
+    if (currentScenario === mode) return;
+    currentScenario = mode;
+
+    const btnBase = document.getElementById('btnBaseline');
+    const btnHeat = document.getElementById('btnHeatwave');
+    const demoBadge = document.getElementById('demoBadge');
+
+    if (mode === 'heatwave') {
+      btnBase.classList.remove('active');
+      btnHeat.classList.add('active', 'heatwave-mode');
+      demoBadge.className = 'demo-badge heatwave';
+      demoBadge.innerHTML = 'SCENARIO MODE &bull; +4°C SIMULATED HEATWAVE';
+    } else {
+      btnHeat.classList.remove('active', 'heatwave-mode');
+      btnBase.classList.add('active');
+      demoBadge.className = 'demo-badge';
+      demoBadge.innerHTML = 'DEMO MODE &bull; SIMULATED REPRESENTATIVE DATA';
+    }
+
+    runRiskEngine();
+  }
+
+  // Initialize Baseline Run
+  runRiskEngine();
+
+  // ---------- ZONE SELECTION & INTELLIGENCE DRAWER ----------
+  function selectZone(zone, polygonLayer) {
+    if (activeLayer) {
+      const prevZone = zones.find(z => z.layer === activeLayer);
+      if (prevZone) {
+        activeLayer.setStyle({ fillOpacity: 0.45, weight: 1, color: resolveVar(prevZone.color) });
+      }
+    }
+    
+    polygonLayer.setStyle({ fillOpacity: 0.88, weight: 2.5, color: '#FFFFFF' });
+    activeLayer = polygonLayer;
+    selectedZoneId = zone.id;
+
+    document.getElementById('clickHint').style.opacity = '0';
+    populateDrawer(zone);
+    document.getElementById('sideDrawer').classList.add('open');
+  }
+
+  function populateDrawer(zone) {
+    document.getElementById('dZoneName').textContent = zone.id;
+    document.getElementById('dZoneCoords').textContent = `${zone.latC.toFixed(4)}°N, ${zone.lonC.toFixed(4)}°E`;
+    
+    const badge = document.getElementById('dRiskBadge');
+    badge.textContent = zone.category;
+    const resolvedColor = resolveVar(zone.color);
+    badge.style.background = resolveVar(zone.bg);
+    badge.style.color = resolvedColor;
+    badge.style.border = `1px solid ${resolvedColor}`;
+
+    const scoreEl = document.getElementById('dRiskScore');
+    scoreEl.textContent = zone.riskScore;
+    scoreEl.style.color = resolvedColor;
+
+    // Show/Hide Scenario Alert Banner
+    const scenarioAlert = document.getElementById('dScenarioAlert');
+    if (currentScenario === 'heatwave') {
+      scenarioAlert.style.display = 'block';
+      scenarioAlert.textContent = `• SCENARIO ALERT: LST elevated to ${zone.lstC.toFixed(1)}°C (+4.0°C anomaly). Risk Score escalated to ${zone.riskScore}/100 (${zone.category}).`;
+    } else {
+      scenarioAlert.style.display = 'none';
+    }
+
+    // Key Drivers Chips
+    const driversList = document.getElementById('dDriversList');
+    driversList.innerHTML = '';
+    zone.topDrivers.forEach(d => {
+      const chip = document.createElement('span');
+      chip.className = 'driver-chip';
+      chip.textContent = d.label;
+      driversList.appendChild(chip);
+    });
+
+    // Metric Bars & Values
+    setMetric('LST', `${zone.lstC.toFixed(1)} °C`, zone.lstNorm * 100, zone.color);
+    setMetric('Bld', `${Math.round(zone.builtDensity * 100)} %`, zone.builtDensity * 100, zone.builtDensity > 0.6 ? 'var(--risk-high)' : 'var(--accent)');
+    setMetric('Veg', `${Math.round(zone.vegDeficit * 100)} % (NDVI ${zone.ndvi.toFixed(2)})`, zone.vegDeficit * 100, zone.vegDeficit > 0.6 ? 'var(--risk-high)' : 'var(--risk-low)');
+    setMetric('Imp', `${Math.round(zone.impervious * 100)} %`, zone.impervious * 100, zone.impervious > 0.6 ? 'var(--risk-high)' : 'var(--accent)');
+    setMetric('Wat', `${Math.round(zone.waterDeficit * 100)} % Deficit`, zone.waterDeficit * 100, zone.waterDeficit > 0.6 ? 'var(--risk-med)' : 'var(--risk-low)');
+    setMetric('Vuln', `${Math.round(zone.popVuln * 100)} / 100 Index`, zone.popVuln * 100, zone.popVuln > 0.6 ? 'var(--risk-extreme)' : 'var(--risk-med)');
+
+    // XAI Explanation Text
+    const xaiEl = document.getElementById('dXaiText');
+    const xaiCard = document.getElementById('dXaiCard');
+    xaiCard.style.borderLeftColor = resolvedColor;
+
+    const driverLabels = zone.topDrivers.map(d => d.label).join(' and ');
+    const scnNote = (currentScenario === 'heatwave') ? ' Under the +4.0°C heatwave scenario, thermal saturation amplifies urban heat trapping across the Raipur–Durg corridor.' : '';
+
+    if (zone.category === 'EXTREME') {
+      xaiEl.textContent = `${zone.gridCode} (${zone.sectorName}) is classified as EXTREME HEAT RISK (${zone.riskScore}/100). The primary risk drivers are ${driverLabels}. High surface heat (${zone.lstC.toFixed(1)}°C) combined with dense built form (${Math.round(zone.builtDensity * 100)}%) and minimal canopy shade creates severe thermal stress.${scnNote}`;
+    } else if (zone.category === 'HIGH') {
+      xaiEl.textContent = `${zone.gridCode} (${zone.sectorName}) exhibits HIGH HEAT RISK (${zone.riskScore}/100), driven primarily by ${driverLabels}. Extensive asphalt paving (${Math.round(zone.impervious * 100)}%) elevates local surface temperature and retards thermal dissipation.${scnNote}`;
+    } else if (zone.category === 'MEDIUM') {
+      xaiEl.textContent = `${zone.id} is at MEDIUM HEAT RISK (${zone.riskScore}/100). Moderate built-up density (${Math.round(zone.builtDensity * 100)}%) is balanced by partial vegetation shade (NDVI: ${zone.ndvi.toFixed(2)}) and localized cooling buffers.${scnNote}`;
+    } else {
+      xaiEl.textContent = `${zone.id} maintains LOW HEAT RISK (${zone.riskScore}/100). High green canopy density (NDVI: ${zone.ndvi.toFixed(2)}) or proximity to the Kharun River cooling buffer keeps surface temperature lower (${zone.lstC.toFixed(1)}°C), suppressing thermal accumulation.${scnNote}`;
+    }
+
+    // Recommendation Protocol
+    const recCard = document.getElementById('dRecCard');
+    const recTitle = document.getElementById('dRecTitle');
+    const recText = document.getElementById('dRecText');
+
+    recCard.className = `rec-card ${zone.category.toLowerCase()}`;
+
+    if (zone.category === 'EXTREME') {
+      recTitle.textContent = 'CRITICAL EMERGENCY ACTION';
+      recText.textContent = `Issue Level-3 Red Heat Advisory for ${zone.sectorName}. Deploy mobile hydration vans, open municipal emergency cooling centers, and activate water-mist stations in high foot-traffic corridors.`;
+    } else if (zone.category === 'HIGH') {
+      recTitle.textContent = 'TARGETED MITIGATION PROTOCOL';
+      recText.textContent = `Flag zone for targeted cool-roof reflective coating subsidies and deploy outreach teams to check on vulnerable elderly residents. Include in priority street tree canopy expansion.`;
+    } else if (zone.category === 'MEDIUM') {
+      recTitle.textContent = 'ROUTINE MONITORING PROTOCOL';
+      recText.textContent = `Maintain active sensors and include zone in seasonal urban greening initiatives. Encourage residential shading and cool pavement upgrades.`;
+    } else {
+      recTitle.textContent = 'CONSERVATION & BUFFER PROTOCOL';
+      recText.textContent = `Protect and preserve existing green canopy and hydrological cooling buffers in ${zone.sectorName} to maintain regional heat resilience.`;
+    }
+  }
+
+  function setMetric(idKey, valText, pct, colorVar) {
+    document.getElementById('fVal' + idKey).textContent = valText;
+    const fillEl = document.getElementById('fFill' + idKey);
+    fillEl.style.width = Math.max(0, Math.min(100, pct)) + '%';
+    if (colorVar) fillEl.style.background = resolveVar(colorVar);
+  }
+
+  function closeDrawer() {
+    document.getElementById('sideDrawer').classList.remove('open');
+    if (activeLayer) {
+      const activeZone = zones.find(z => z.id === selectedZoneId);
+      if (activeZone) {
+        activeLayer.setStyle({ fillOpacity: 0.45, weight: 1, color: resolveVar(activeZone.color) });
+      }
+      activeLayer = null;
+      selectedZoneId = null;
+    }
+  }
+</script>
+</body>
+</html>
